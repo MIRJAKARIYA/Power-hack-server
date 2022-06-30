@@ -2,11 +2,8 @@ const express = require("express");
 const cors = require("cors");
 require("dotenv").config();
 const jwt = require("jsonwebtoken");
-const passport = require("passport");
 const { MongoClient, ServerApiVersion } = require("mongodb");
 const bcrypt = require("bcrypt");
-const initializePassport = require('./passport-config');
-
 
 
 const app = express();
@@ -48,14 +45,37 @@ const run = async () => {
     await client.connect();
     //users collection
     const usersCollection = client.db("power-hack-db").collection("users");
+    const informationCollection = client.db("power-hack-db").collection("informations");
 
 
-    initializePassport(passport,
-      email => usersCollection.findOne(email)
-    )
+    //user login
+    app.post("/login", async(req, res)=>{
+      const userEmail = req.body.email;
+      const userPassword = req.body.password;
+      const isExists = await usersCollection.findOne({email:userEmail});
+      if(isExists){
+        try{
+          const isValid = await bcrypt.compare(userPassword, isExists.password)
+          if(isValid){
+            const token = jwt.sign({email:userEmail},process.env.ACCESS_TOKEN_SECRET,{expiresIn:'1d'})
+            res.send({acknowledged:true,token,mgs:'success'})
+          }
+          else{
+            res.send({acknowledged:false,mgs:'password incorrect'})
+          }
+        }
+        catch{
+          res.status(500).send()
+        }
+      }
+      else{
+        res.send({acknowledged:false,mgs:'email is not registered'})
+      }
 
+    })
 
-    app.post("/register", async (req, res) => {
+    //user registration
+    app.post("/registration", async (req, res) => {
       const query = { email: req.body.email };
 
       try {
@@ -63,7 +83,8 @@ const run = async () => {
         if (isExists) {
           res.send({acknowledged:false,mgs:'User already exists'});
         } else {
-          const hashedPassword = await bcrypt.hash(req.body.password, 10);
+          const salt = await bcrypt.genSalt();
+          const hashedPassword = await bcrypt.hash(req.body.password, salt);
           const user = {
             name: req.body.name,
             email: req.body.email,
@@ -74,6 +95,46 @@ const run = async () => {
         }
       } catch {}
     });
+
+
+    //varifying if the user is valid
+    app.post("/isValidUser", verifyToken,(req,res)=>{
+      const email = req.query.email;
+      const decodedEmail = req.decoded.email;
+
+      if(email === decodedEmail){
+        res.send({ authorization: true, message: "Access given" })
+      }
+      else{
+        res.send({ authorization: false, message: "Access denied" })
+      }
+    })
+
+
+    //add billing to the database
+    app.post("/add-billing", async(req, res)=>{
+      const billing = req.body;
+      
+    })
+
+    //get all billing from the database
+    app.get("/billing-list", async(req, res)=>{
+      const billigList =await informationCollection.find({}).toArray()
+      res.send(billigList)
+    })
+
+    //update single billing
+    app.put("/update-billing/:id",async(req, res)=>{
+
+    })
+
+    //delete single billing billing
+    app.delete("/update-billing/:id",async(req, res)=>{
+
+    })
+
+
+
   } finally {
   }
 };
