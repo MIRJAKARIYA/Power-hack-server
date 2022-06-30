@@ -2,7 +2,7 @@ const express = require("express");
 const cors = require("cors");
 require("dotenv").config();
 const jwt = require("jsonwebtoken");
-const { MongoClient, ServerApiVersion } = require("mongodb");
+const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 const bcrypt = require("bcrypt");
 
 
@@ -130,7 +130,10 @@ const run = async () => {
 
     //delete single billing billing
     app.delete("/update-billing/:id",async(req, res)=>{
-
+      const id = req.params.id;
+      const query = {_id:ObjectId(id)};
+      const result = await informationCollection.deleteOne(query)
+      res.send(result)
     })
 
 
