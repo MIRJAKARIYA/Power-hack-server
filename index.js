@@ -49,7 +49,7 @@ const run = async () => {
 
 
     //user login
-    app.post("/login", async(req, res)=>{
+    app.post("/api/login", async(req, res)=>{
       const userEmail = req.body.email;
       const userPassword = req.body.password;
       const isExists = await usersCollection.findOne({email:userEmail});
@@ -75,7 +75,7 @@ const run = async () => {
     })
 
     //user registration
-    app.post("/registration", async (req, res) => {
+    app.post("/api/registration", async (req, res) => {
       const query = { email: req.body.email };
 
       try {
@@ -98,7 +98,7 @@ const run = async () => {
 
 
     //varifying if the user is valid
-    app.post("/isValidUser", verifyToken,(req,res)=>{
+    app.post("/api/isValidUser", verifyToken,(req,res)=>{
       const email = req.query.email;
       const decodedEmail = req.decoded.email;
 
@@ -112,24 +112,51 @@ const run = async () => {
 
 
     //add billing to the database
-    app.post("/add-billing", async(req, res)=>{
+    app.put("/api/add-billing", async(req, res)=>{
       const billing = req.body;
       
     })
 
     //get all billing from the database
-    app.get("/billing-list", async(req, res)=>{
+    app.get("/api/billing-list", async(req, res)=>{
       const billigList =await informationCollection.find({}).toArray()
       res.send(billigList)
     })
 
     //update single billing
-    app.put("/update-billing/:id",async(req, res)=>{
+    app.put("/api/update-billing/:id",async(req, res)=>{
+        const id = req.params.id;
+        const updatedData = req.body;
+        console.log(updatedData)
+        const filter = { _id: ObjectId(id) };
+        const options = { upsert: true };
+        const updatedDoc = {
+          $set: {
+            FullName: req.body.FullName,
+            Email:req.body.Email,
+            Phone: req.body.Phone,
+            PaidAmount: req.body.PaidAmount
+          },
+        };
+        const result = await informationCollection.updateOne(
+          filter,
+          updatedDoc,
+          options
+        );
+        res.send(result);
+      });
+      
+    app.post("/api/add-billing",async(req, res)=>{
+        const data = req.body
 
-    })
+        const result = await informationCollection.insertOne(data);
+        res.send(result)
+
+      });
+
 
     //delete single billing billing
-    app.delete("/update-billing/:id",async(req, res)=>{
+    app.delete("/api/update-billing/:id",async(req, res)=>{
       const id = req.params.id;
       const query = {_id:ObjectId(id)};
       const result = await informationCollection.deleteOne(query)
