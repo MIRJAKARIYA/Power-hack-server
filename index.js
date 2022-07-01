@@ -5,7 +5,6 @@ const jwt = require("jsonwebtoken");
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 const bcrypt = require("bcrypt");
 
-
 const app = express();
 const port = process.env.PORT || 5000;
 
@@ -45,34 +44,35 @@ const run = async () => {
     await client.connect();
     //users collection
     const usersCollection = client.db("power-hack-db").collection("users");
-    const informationCollection = client.db("power-hack-db").collection("informations");
-
+    const informationCollection = client
+      .db("power-hack-db")
+      .collection("informations");
 
     //user login
-    app.post("/api/login", async(req, res)=>{
+    app.post("/api/login", async (req, res) => {
       const userEmail = req.body.email;
       const userPassword = req.body.password;
-      const isExists = await usersCollection.findOne({email:userEmail});
-      if(isExists){
-        try{
-          const isValid = await bcrypt.compare(userPassword, isExists.password)
-          if(isValid){
-            const token = jwt.sign({email:userEmail},process.env.ACCESS_TOKEN_SECRET,{expiresIn:'1d'})
-            res.send({acknowledged:true,token,mgs:'success'})
+      const isExists = await usersCollection.findOne({ email: userEmail });
+      if (isExists) {
+        try {
+          const isValid = await bcrypt.compare(userPassword, isExists.password);
+          if (isValid) {
+            const token = jwt.sign(
+              { email: userEmail },
+              process.env.ACCESS_TOKEN_SECRET,
+              { expiresIn: "1d" }
+            );
+            res.send({ acknowledged: true, token, mgs: "success" });
+          } else {
+            res.send({ acknowledged: false, mgs: "password incorrect" });
           }
-          else{
-            res.send({acknowledged:false,mgs:'password incorrect'})
-          }
+        } catch {
+          res.status(500).send();
         }
-        catch{
-          res.status(500).send()
-        }
+      } else {
+        res.send({ acknowledged: false, mgs: "email is not registered" });
       }
-      else{
-        res.send({acknowledged:false,mgs:'email is not registered'})
-      }
-
-    })
+    });
 
     //user registration
     app.post("/api/registration", async (req, res) => {
@@ -81,7 +81,7 @@ const run = async () => {
       try {
         const isExists = await usersCollection.findOne(query);
         if (isExists) {
-          res.send({acknowledged:false,mgs:'User already exists'});
+          res.send({ acknowledged: false, mgs: "User already exists" });
         } else {
           const salt = await bcrypt.genSalt();
           const hashedPassword = await bcrypt.hash(req.body.password, salt);
@@ -96,75 +96,58 @@ const run = async () => {
       } catch {}
     });
 
-
     //varifying if the user is valid
-    app.post("/api/isValidUser", verifyToken,(req,res)=>{
+    app.post("/api/isValidUser", verifyToken, (req, res) => {
       const email = req.query.email;
       const decodedEmail = req.decoded.email;
-
-      if(email === decodedEmail){
-        res.send({ authorization: true, message: "Access given" })
+      if (email === decodedEmail) {
+        res.send({ authorization: true, message: "Access given" });
+      } else {
+        res.send({ authorization: false, message: "Access denied" });
       }
-      else{
-        res.send({ authorization: false, message: "Access denied" })
-      }
-    })
-
-
-    //add billing to the database
-    app.put("/api/add-billing", async(req, res)=>{
-      const billing = req.body;
-      
-    })
+    });
 
     //get all billing from the database
-    app.get("/api/billing-list", async(req, res)=>{
-      const billigList =await informationCollection.find({}).toArray()
-      res.send(billigList)
-    })
+    app.get("/api/billing-list", async (req, res) => {
+      const billigList = await informationCollection.find({}).toArray();
+      res.send(billigList);
+    });
 
     //update single billing
-    app.put("/api/update-billing/:id",async(req, res)=>{
-        const id = req.params.id;
-        const updatedData = req.body;
-        console.log(updatedData)
-        const filter = { _id: ObjectId(id) };
-        const options = { upsert: true };
-        const updatedDoc = {
-          $set: {
-            FullName: req.body.FullName,
-            Email:req.body.Email,
-            Phone: req.body.Phone,
-            PaidAmount: req.body.PaidAmount
-          },
-        };
-        const result = await informationCollection.updateOne(
-          filter,
-          updatedDoc,
-          options
-        );
-        res.send(result);
-      });
-      
-    app.post("/api/add-billing",async(req, res)=>{
-        const data = req.body
+    app.put("/api/update-billing/:id", verifyToken, async (req, res) => {
+      const id = req.params.id;
+      const updatedData = req.body;
+      const filter = { _id: ObjectId(id) };
+      const options = { upsert: true };
+      const updatedDoc = {
+        $set: {
+          FullName: req.body.FullName,
+          Email: req.body.Email,
+          Phone: req.body.Phone,
+          PaidAmount: req.body.PaidAmount,
+        },
+      };
+      const result = await informationCollection.updateOne(
+        filter,
+        updatedDoc,
+        options
+      );
+      res.send(result);
+    });
 
-        const result = await informationCollection.insertOne(data);
-        res.send(result)
-
-      });
-
+    app.post("/api/add-billing", verifyToken, async (req, res) => {
+      const data = req.body;
+      const result = await informationCollection.insertOne(data);
+      res.send(result);
+    });
 
     //delete single billing billing
-    app.delete("/api/update-billing/:id",async(req, res)=>{
-      const id = req.params.id;
-      const query = {_id:ObjectId(id)};
-      const result = await informationCollection.deleteOne(query)
-      res.send(result)
-    })
-
-
-
+    app.delete("/api/update-billing/:id", verifyToken, async (req, res) => {
+        const id = req.params.id;
+        const query = { _id: ObjectId(id) };
+        const result = await informationCollection.deleteOne(query);
+        res.send(result);
+    });
   } finally {
   }
 };
